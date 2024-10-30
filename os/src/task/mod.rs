@@ -14,9 +14,10 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_ms;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
@@ -54,6 +55,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            syscall_times: [0; MAX_SYSCALL_NUM],
+            current_time: get_time_ms(),
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -135,6 +138,32 @@ impl TaskManager {
             panic!("All applications completed!");
         }
     }
+
+    /// Get the syscall times of all syscall_id
+    fn get_syscall_times(&self) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times
+    }
+
+    /// Increase once when run syscall
+    fn increase_syscall_times(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times[syscall_id] += 1;
+        inner.tasks[current].current_time = get_time_ms();
+    }
+
+    fn get_current_task_control_block(&self) -> TaskControlBlock {
+        let inner = TASK_MANAGER.inner.exclusive_access();
+        let current = inner.current_task;      
+        inner.tasks[current]
+    }
+
+    fn get_first_task_control_block(&self) -> TaskControlBlock {
+        let inner = TASK_MANAGER.inner.exclusive_access();      
+        inner.tasks[0]
+    }
 }
 
 /// Run the first task in task list.
@@ -156,6 +185,26 @@ fn mark_current_suspended() {
 /// Change the status of current `Running` task into `Exited`.
 fn mark_current_exited() {
     TASK_MANAGER.mark_current_exited();
+}
+
+/// Get the syscall times of all syscall_id
+pub fn get_syscall_times() -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_syscall_times()
+}
+
+/// Increase once when run syscall
+pub fn increase_syscall_times(syscall_id: usize) {
+    TASK_MANAGER.increase_syscall_times(syscall_id);
+}
+
+/// Get current task control block
+pub fn get_current_task_control_block() -> TaskControlBlock {
+    TASK_MANAGER.get_current_task_control_block()
+}
+
+/// Get first task control block
+pub fn get_first_task_control_block() -> TaskControlBlock {
+    TASK_MANAGER.get_first_task_control_block()
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.
