@@ -2,7 +2,8 @@
 use crate::{
     config::MAX_SYSCALL_NUM,
     task::{exit_current_and_run_next, suspend_current_and_run_next, get_syscall_times, 
-        get_current_task_control_block, get_first_task_control_block, TaskStatus},
+        get_current_task_control_block, 
+        TaskStatus},
     timer::get_time_us,
 };
 
@@ -56,15 +57,11 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     trace!("kernel: sys_task_info");
 
     let current_task_control_block = get_current_task_control_block();
-    let first_task_control_block = get_first_task_control_block();
-
-    let end_time = current_task_control_block.current_time;
-    let start_time = first_task_control_block.current_time;
 
     unsafe {
         (*_ti).status = TaskStatus::Running;
         (*_ti).syscall_times = get_syscall_times();
-        (*_ti).time = end_time - start_time;
+        (*_ti).time = current_task_control_block.lastest_syscall_time - current_task_control_block.start_time;
         // (*_ti).time = 0;
     }
     0

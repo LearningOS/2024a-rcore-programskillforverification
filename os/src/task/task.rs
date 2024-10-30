@@ -12,8 +12,10 @@ pub struct TaskControlBlock {
     pub task_cx: TaskContext,
     /// The numbers of syscall called by task
     pub syscall_times: [u32; MAX_SYSCALL_NUM],
-    /// The time of create `Self` or change the stats
-    pub current_time: usize,
+    /// The beginning time of create `Self`
+    pub start_time: usize,
+    /// The lastest of calling syscall
+    pub lastest_syscall_time: usize,
 }
 
 /// The status of a task

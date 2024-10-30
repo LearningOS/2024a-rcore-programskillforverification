@@ -56,8 +56,10 @@ lazy_static! {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
             syscall_times: [0; MAX_SYSCALL_NUM],
-            current_time: get_time_ms(),
+            start_time: get_time_ms(),
+            lastest_syscall_time: get_time_ms(),
         }; MAX_APP_NUM];
+        println!("{}", get_time_ms());
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
@@ -151,18 +153,13 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].syscall_times[syscall_id] += 1;
-        inner.tasks[current].current_time = get_time_ms();
+        inner.tasks[current].lastest_syscall_time = get_time_ms();
     }
 
     fn get_current_task_control_block(&self) -> TaskControlBlock {
         let inner = TASK_MANAGER.inner.exclusive_access();
         let current = inner.current_task;      
         inner.tasks[current]
-    }
-
-    fn get_first_task_control_block(&self) -> TaskControlBlock {
-        let inner = TASK_MANAGER.inner.exclusive_access();      
-        inner.tasks[0]
     }
 }
 
@@ -200,11 +197,6 @@ pub fn increase_syscall_times(syscall_id: usize) {
 /// Get current task control block
 pub fn get_current_task_control_block() -> TaskControlBlock {
     TASK_MANAGER.get_current_task_control_block()
-}
-
-/// Get first task control block
-pub fn get_first_task_control_block() -> TaskControlBlock {
-    TASK_MANAGER.get_first_task_control_block()
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.
