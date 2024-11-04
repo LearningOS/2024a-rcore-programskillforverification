@@ -35,8 +35,10 @@ lazy_static! {
 }
 /// address space
 pub struct MemorySet {
-    page_table: PageTable,
-    areas: Vec<MapArea>,
+    /// page table
+    pub page_table: PageTable,
+    /// map area
+    pub areas: Vec<MapArea>,
 }
 
 impl MemorySet {
@@ -355,6 +357,10 @@ impl MapArea {
             }
             current_vpn.step();
         }
+    }
+
+    pub fn get_vpn_range(&self) -> VPNRange {
+        self.vpn_range
     }
 }
 
